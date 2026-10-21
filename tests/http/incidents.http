@@ -25,6 +25,10 @@ Accept: application/json
 GET {{host}}/api/incidents?status=Unknown
 Accept: application/json
 
-### Lab 1 extension point: expected 501 before student implementation
+### Lab 1 extension point: expected 200 OK
 GET {{host}}/api/incidents/severity-summary
+Accept: application/json
+
+### List with empty filter: expected 200 OK with []
+GET {{host}}/api/incidents?status=Resolved
 Accept: application/json
