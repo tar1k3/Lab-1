@@ -2,9 +2,6 @@ const listElement = document.querySelector("#incident-list");
 const listStatusElement = document.querySelector("#list-status");
 const detailsElement = document.querySelector("#incident-details");
 const filterForm = document.querySelector("#filter-form");
-const summaryBtn = document.getElementById('load-summary-btn');
-const summaryStatus = document.getElementById('summary-status');
-const summaryList = document.getElementById('severity-summary-list');
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(path, {
@@ -107,21 +104,16 @@ async function loadIncidentDetails(id) {
 }
 
 async function loadSeveritySummary() {
-  // Завжди отримуємо актуальні елементи з DOM на момент кліку
   const summaryStatus = document.getElementById('summary-status');
   const summaryList = document.getElementById('severity-summary-list');
 
-  if (!summaryStatus || !summaryList) {
-    console.error("Елементи статистики не знайдено в DOM!");
-    return;
-  }
-  
+  if (!summaryStatus || !summaryList) return;
+
   summaryStatus.textContent = "Завантаження…";
   summaryList.replaceChildren();
 
   try {
     const response = await apiFetch("/api/incidents/severity-summary");
-    
     const items = Array.isArray(response) ? response : (response.items || response.Items || []);
 
     if (items.length === 0) {
@@ -130,7 +122,7 @@ async function loadSeveritySummary() {
     }
 
     summaryStatus.textContent = "";
-    
+
     items.forEach(summary => {
       const li = document.createElement("li");
       const sev = summary.severity ?? summary.Severity ?? "Unknown";
@@ -151,10 +143,8 @@ filterForm.addEventListener("submit", (event) => {
 
 loadIncidents();
 
-// Надійне підключення події після повного завантаження DOM
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById('load-summary-btn');
-  if (btn) {
-    btn.addEventListener('click', loadSeveritySummary);
-  }
-});
+// Прив'язка події кліку до кнопки завантаження статистики
+const summaryBtn = document.getElementById('load-summary-btn');
+if (summaryBtn) {
+  summaryBtn.addEventListener('click', loadSeveritySummary);
+}
