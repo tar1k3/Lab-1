@@ -103,7 +103,6 @@ async function loadIncidentDetails(id) {
   }
 }
 
-// ДОДАНО: Функція для завантаження статистики за критичністю
 async function loadSeveritySummary() {
   const summaryStatus = document.getElementById('summary-status');
   const summaryList = document.getElementById('severity-summary-list');
