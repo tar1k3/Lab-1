@@ -2,6 +2,9 @@ const listElement = document.querySelector("#incident-list");
 const listStatusElement = document.querySelector("#list-status");
 const detailsElement = document.querySelector("#incident-details");
 const filterForm = document.querySelector("#filter-form");
+const summaryBtn = document.getElementById('load-summary-btn');
+const summaryStatus = document.getElementById('summary-status');
+const summaryList = document.getElementById('severity-summary-list');
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(path, {
@@ -103,9 +106,37 @@ async function loadIncidentDetails(id) {
   }
 }
 
+async function loadSeveritySummary() {
+  summaryStatus.textContent = "Завантаження…";
+  summaryList.innerHTML = "";
+
+  try {
+    const response = await apiFetch("/api/incidents/severity-summary");
+    
+    if (!response.items || response.items.length === 0) {
+      summaryStatus.textContent = "Даних немає";
+      return;
+    }
+
+    summaryStatus.textContent = "";
+    
+    response.items.forEach(summary => {
+      const li = document.createElement("li");
+      li.textContent = `${summary.severity}: ${summary.count}`;
+      summaryList.appendChild(li);
+    });
+  } catch (error) {
+    summaryStatus.textContent = "Сталася помилка під час отримання підсумку.";
+  }
+}
+
 filterForm.addEventListener("submit", (event) => {
   event.preventDefault();
   loadIncidents();
 });
 
 loadIncidents();
+
+if (summaryBtn) {
+  summaryBtn.addEventListener('click', loadSeveritySummary);
+}
