@@ -142,9 +142,3 @@ filterForm.addEventListener("submit", (event) => {
 });
 
 loadIncidents();
-
-// Прив'язка події кліку до кнопки завантаження статистики
-const summaryBtn = document.getElementById('load-summary-btn');
-if (summaryBtn) {
-  summaryBtn.addEventListener('click', loadSeveritySummary);
-}
