@@ -107,7 +107,14 @@ async function loadIncidentDetails(id) {
 }
 
 async function loadSeveritySummary() {
-  if (!summaryStatus || !summaryList) return;
+  // Завжди отримуємо актуальні елементи з DOM на момент кліку
+  const summaryStatus = document.getElementById('summary-status');
+  const summaryList = document.getElementById('severity-summary-list');
+
+  if (!summaryStatus || !summaryList) {
+    console.error("Елементи статистики не знайдено в DOM!");
+    return;
+  }
   
   summaryStatus.textContent = "Завантаження…";
   summaryList.replaceChildren();
@@ -133,7 +140,7 @@ async function loadSeveritySummary() {
     });
   } catch (error) {
     summaryStatus.textContent = "Сталася помилка під час отримання підсумку.";
-    console.error(error); 
+    console.error(error);
   }
 }
 
@@ -144,6 +151,7 @@ filterForm.addEventListener("submit", (event) => {
 
 loadIncidents();
 
+// Надійне підключення події після повного завантаження DOM
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById('load-summary-btn');
   if (btn) {
