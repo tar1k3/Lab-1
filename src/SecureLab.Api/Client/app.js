@@ -97,12 +97,13 @@ async function loadIncidentDetails(id) {
   detailsElement.textContent = "Завантаження…";
 
   try {
-    renderIncidentDetails(await apiFetch(`/api/incidents/${encodeURIComponent(id)}`));
+    renderIncidentDetails(await apiFetch(`/api/incidents/${encodeURIComponent(id)}`))
   } catch (error) {
     detailsElement.textContent = `Помилка: ${error.message}`;
   }
 }
 
+// ДОДАНО: Функція для завантаження статистики за критичністю
 async function loadSeveritySummary() {
   const summaryStatus = document.getElementById('summary-status');
   const summaryList = document.getElementById('severity-summary-list');
@@ -142,3 +143,8 @@ filterForm.addEventListener("submit", (event) => {
 });
 
 loadIncidents();
+
+const summaryBtn = document.getElementById('load-summary-btn');
+if (summaryBtn) {
+  summaryBtn.addEventListener('click', loadSeveritySummary);
+}
