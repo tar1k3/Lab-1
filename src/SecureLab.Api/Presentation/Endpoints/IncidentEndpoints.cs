@@ -21,12 +21,10 @@ public static class IncidentEndpoints
             .Produces<IncidentDetailsResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapGet("/severity-summary", () => Results.Problem(
-                title: "Точку розширення ще не реалізовано",
-                detail: "Завершіть цей endpoint під час лабораторної роботи № 1.",
-                statusCode: StatusCodes.Status501NotImplemented))
+        // ОНОВЛЕНО ДЛЯ КРОКУ 3: Підключено новий метод замість заглушки 501
+        group.MapGet("/severity-summary", GetSeveritySummaryAsync)
             .WithName("GetIncidentSeveritySummary")
-            .ProducesProblem(StatusCodes.Status501NotImplemented);
+            .Produces<IncidentSeveritySummaryResponse>();
 
         return endpoints;
     }
@@ -66,5 +64,14 @@ public static class IncidentEndpoints
                 detail: $"Інцидент '{id}' не існує.",
                 statusCode: StatusCodes.Status404NotFound)
             : Results.Ok(incident);
+    }
+
+    // ДОДАНО ДЛЯ КРОКУ 3: Метод-обробник
+    private static async Task<IResult> GetSeveritySummaryAsync(
+        IncidentQueries queries,
+        CancellationToken cancellationToken)
+    {
+        var summary = await queries.GetSeveritySummaryAsync(cancellationToken);
+        return Results.Ok(summary);
     }
 }
