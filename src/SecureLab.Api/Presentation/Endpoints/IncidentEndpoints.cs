@@ -21,7 +21,6 @@ public static class IncidentEndpoints
             .Produces<IncidentDetailsResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        // ОНОВЛЕНО ДЛЯ КРОКУ 3: Підключено новий метод замість заглушки 501
         group.MapGet("/severity-summary", GetSeveritySummaryAsync)
             .WithName("GetIncidentSeveritySummary")
             .Produces<IncidentSeveritySummaryResponse>();
@@ -66,7 +65,6 @@ public static class IncidentEndpoints
             : Results.Ok(incident);
     }
 
-    // ДОДАНО ДЛЯ КРОКУ 3: Метод-обробник
     private static async Task<IResult> GetSeveritySummaryAsync(
         IncidentQueries queries,
         CancellationToken cancellationToken)
