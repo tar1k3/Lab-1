@@ -107,26 +107,33 @@ async function loadIncidentDetails(id) {
 }
 
 async function loadSeveritySummary() {
+  if (!summaryStatus || !summaryList) return;
+  
   summaryStatus.textContent = "Завантаження…";
-  summaryList.innerHTML = "";
+  summaryList.replaceChildren();
 
   try {
     const response = await apiFetch("/api/incidents/severity-summary");
     
-    if (!response.items || response.items.length === 0) {
+    const items = Array.isArray(response) ? response : (response.items || response.Items || []);
+
+    if (items.length === 0) {
       summaryStatus.textContent = "Даних немає";
       return;
     }
 
     summaryStatus.textContent = "";
     
-    response.items.forEach(summary => {
+    items.forEach(summary => {
       const li = document.createElement("li");
-      li.textContent = `${summary.severity}: ${summary.count}`;
+      const sev = summary.severity ?? summary.Severity ?? "Unknown";
+      const cnt = summary.count ?? summary.Count ?? 0;
+      li.textContent = `${sev}: ${cnt}`;
       summaryList.appendChild(li);
     });
   } catch (error) {
     summaryStatus.textContent = "Сталася помилка під час отримання підсумку.";
+    console.error(error); 
   }
 }
 
@@ -137,6 +144,9 @@ filterForm.addEventListener("submit", (event) => {
 
 loadIncidents();
 
-if (summaryBtn) {
-  summaryBtn.addEventListener('click', loadSeveritySummary);
-}
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById('load-summary-btn');
+  if (btn) {
+    btn.addEventListener('click', loadSeveritySummary);
+  }
+});
