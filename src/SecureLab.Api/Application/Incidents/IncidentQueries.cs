@@ -58,4 +58,33 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
                     .ToList()))
             .SingleOrDefaultAsync(cancellationToken);
     }
+
+    // НОВИЙ МЕТОД ДЛЯ КРОКУ 2:
+    public async Task<IncidentSeveritySummaryResponse> GetSeveritySummaryAsync(CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Отримання статистики інцидентів за критичністю");
+
+        // 1. Формуємо запит до БД з групуванням
+        var items = await dbContext.Incidents
+            .AsNoTracking()
+            .GroupBy(i => i.Severity)
+            .Select(group => new IncidentSeveritySummaryItem(
+                group.Key.ToString(), 
+                group.Count()))
+            .ToListAsync(cancellationToken);
+
+        // 2. Сортуємо результати у пам'яті (за спаданням кількості, потім за алфавітом)
+        var sortedItems = items
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Severity)
+            .ToList();
+
+        // 3. Структуроване логування кожної групи
+        foreach (var item in sortedItems)
+        {
+            logger.LogInformation("Критичність {Severity}: {Count} інцидент(ів)", item.Severity, item.Count);
+        }
+
+        return new IncidentSeveritySummaryResponse(sortedItems);
+    }
 }
