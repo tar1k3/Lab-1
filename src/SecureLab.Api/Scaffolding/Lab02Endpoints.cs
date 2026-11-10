@@ -75,9 +75,15 @@ public static class Lab02Endpoints
     db.Incidents.Add(incident);
     await db.SaveChangesAsync(ct);
 
-    var response = new CreatedIncidentResponse(
-        incident.Id, incident.Title, incident.Severity.ToString(),
-        incident.Status.ToString(), incident.OccurredAtUtc, incident.CreatedAtUtc);
+var response = new CreatedIncidentResponse(
+    incident.Id,
+    incident.Title,
+    incident.Description,
+    incident.Severity.ToString(),
+    incident.Status.ToString(),
+    incident.OccurredAtUtc,
+    incident.CreatedAtUtc,
+    incident.UpdatedAtUtc);
 
     return Results.Created($"/api/incidents/{incident.Id}", response);
 });
@@ -93,7 +99,9 @@ public sealed record CreateIncidentRequest(
 public sealed record CreatedIncidentResponse(
     Guid Id,
     string Title,
+    string Description,
     string Severity,
     string Status,
     DateTimeOffset OccurredAtUtc,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset UpdatedAtUtc);
