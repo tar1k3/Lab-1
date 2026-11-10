@@ -92,28 +92,47 @@ public static class Lab02Endpoints
             return Results.Created($"/api/incidents/{incident.Id}", response);
         });
         app.MapGet("/api/incidents/search", async (
-            string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
+    string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
+{
+    var pattern = "%" + EscapeLike(q ?? "") + "%";
+
+    var found = db.Incidents.AsNoTracking()
+        .Where(i => EF.Functions.ILike(i.Title, pattern, "\\")
+                 || EF.Functions.ILike(i.Description, pattern, "\\"));
+
+    IQueryable<Incident>? ordered = sortBy switch
+    {
+        null or "" or "createdAtUtc" => found
+            .OrderByDescending(i => i.CreatedAtUtc).ThenBy(i => i.Id),
+        "severity" => found
+            .OrderBy(i => i.Severity == IncidentSeverity.Critical ? 0
+                : i.Severity == IncidentSeverity.High ? 1
+                : i.Severity == IncidentSeverity.Medium ? 2 : 3)
+            .ThenBy(i => i.Id),
+        "status" => found
+            .OrderBy(i => i.Status == IncidentStatus.New ? 0
+                : i.Status == IncidentStatus.Triaged ? 1
+                : i.Status == IncidentStatus.InProgress ? 2
+                : i.Status == IncidentStatus.Resolved ? 3 : 4)
+            .ThenBy(i => i.Id),
+        _ => null
+    };
+
+    if (ordered is null)
+        return Results.ValidationProblem(new Dictionary<string, string[]>
         {
-            var order = sortBy switch
-            {
-                "severity"      => "severity DESC",
-                "status"        => "status",
-                "createdAtUtc"  => "created_at_utc DESC",
-                _               => sortBy ?? "created_at_utc DESC"
-            };
-
-            var sql = "SELECT * FROM incidents WHERE title ILIKE '%" 
-                      + (q ?? "") 
-                      + "%' OR description ILIKE '%"
-                      + (q ?? "")
-                      + "%' ORDER BY " + order;
-
-            var incidents = await db.Incidents
-                .FromSqlRaw(sql)
-                .ToListAsync(ct);
-
-            return Results.Ok(incidents);
+            ["sortBy"] = ["Допустимі значення: createdAtUtc, severity, status."]
         });
+
+    var items = await ordered
+        .Take(50)
+        .Select(i => new IncidentListItemResponse(
+            i.Id, i.Title, i.Severity.ToString(), i.Status.ToString(),
+            i.OccurredAtUtc, i.CreatedAtUtc))
+        .ToListAsync(ct);
+
+    return Results.Ok(items);
+});
     }
 }
 
