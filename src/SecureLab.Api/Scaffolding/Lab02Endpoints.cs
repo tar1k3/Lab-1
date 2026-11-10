@@ -7,6 +7,7 @@ namespace SecureLab.Api.Scaffolding;
 
 public static class Lab02Endpoints
 {
+      private static string EscapeLike(string value) => value.Replace("\\", "\\\\").Replace("_", "\\_").Replace("%", "\\%");
     public static void MapLab02Endpoints(this WebApplication app)
     {
         app.MapPost("/api/incidents", async (
@@ -131,3 +132,11 @@ public sealed record CreatedIncidentResponse(
     DateTimeOffset OccurredAtUtc,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc);
+
+public sealed record IncidentListItemResponse(
+    Guid Id,
+    string Title,
+    string Severity,
+    string Status,
+    DateTimeOffset OccurredAtUtc,
+    DateTimeOffset CreatedAtUtc);
