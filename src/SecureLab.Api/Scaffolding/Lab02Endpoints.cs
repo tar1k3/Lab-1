@@ -9,7 +9,6 @@ public static class Lab02Endpoints
 {
     public static void MapLab02Endpoints(this WebApplication app)
     {
-        // ── POST: створення інциденту ──────────────────────────────────────
         app.MapPost("/api/incidents", async (
             CreateIncidentRequest request,
             SecureLabDbContext db,
@@ -91,12 +90,6 @@ public static class Lab02Endpoints
 
             return Results.Created($"/api/incidents/{incident.Id}", response);
         });
-
-        // ── GET: вразливий пошук (VULNERABLE STATE — Етап 3) ──────────────
-        // УВАГА: цей код навмисно вразливий до SQL injection.
-        // Значення q вклеюється прямо в SQL-рядок через конкатенацію.
-        // sortBy через гілку _ => sortBy потрапляє в ORDER BY без перевірки.
-        // Це буде виправлено на Етапі 4.
         app.MapGet("/api/incidents/search", async (
             string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
         {
@@ -122,8 +115,6 @@ public static class Lab02Endpoints
         });
     }
 }
-
-// ── DTO ───────────────────────────────────────────────────────────────────
 
 public sealed record CreateIncidentRequest(
     string? Title,
