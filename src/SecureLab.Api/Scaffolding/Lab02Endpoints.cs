@@ -46,4 +46,15 @@ public static class Lab02Endpoints
 }
 
 public sealed record CreateIncidentRequest(
-    string? Title, string? Description, string? Severity, DateTimeOffset? OccurredAtUtc);
+    string? Title,
+    string? Description,
+    string? Severity,
+    DateTimeOffset? OccurredAtUtc);
+
+public sealed record CreatedIncidentResponse(
+    Guid Id,
+    string Title,
+    string Severity,
+    string Status,
+    DateTimeOffset OccurredAtUtc,
+    DateTimeOffset CreatedAtUtc);
