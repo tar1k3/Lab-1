@@ -35,23 +35,46 @@ public static class Lab03Identity
 
     public static void MapLab03Identity(this WebApplication app)
     {
-        app.MapPost("/api/auth/register", async (RegistrationInput input, UserManager<ApplicationUser> users) =>
-        {
-            // ЛР 03: завершіть DTO validation та перевірки довірчої межі.
-            if (string.IsNullOrWhiteSpace(input.UserName) || string.IsNullOrWhiteSpace(input.Email)
-                || string.IsNullOrWhiteSpace(input.DisplayName) || string.IsNullOrEmpty(input.Password))
-                return Results.BadRequest();
-            var user = new ApplicationUser
-            {
-                Id = Guid.NewGuid(), UserName = input.UserName.Trim(), Email = input.Email.Trim(),
-                DisplayName = input.DisplayName.Trim()
-            };
-            var result = await users.CreateAsync(user, input.Password);
-            if (!result.Succeeded) return Results.BadRequest(new { message = "Registration failed" });
-            var role = await users.AddToRoleAsync(user, DbSeeder.ReporterRole);
-            if (!role.Succeeded) throw new InvalidOperationException("Default role assignment failed.");
-            return Results.Created("/api/me", new { user.Id, user.UserName, user.DisplayName });
-        });
+       app.MapPost("/api/auth/register", async (RegistrationInput input, UserManager<ApplicationUser> users) =>
+{
+    if (string.IsNullOrWhiteSpace(input.UserName) || string.IsNullOrWhiteSpace(input.Email)
+        || string.IsNullOrWhiteSpace(input.DisplayName) || string.IsNullOrEmpty(input.Password))
+        return Results.BadRequest(new { message = "Registration failed" });
+
+    if (input.UserName.Trim().Length < 3 || input.UserName.Trim().Length > 64)
+        return Results.BadRequest(new { message = "Registration failed" });
+
+    if (!input.Email.Contains('@') || input.Email.Length > 256)
+        return Results.BadRequest(new { message = "Registration failed" });
+
+    if (input.DisplayName.Trim().Length > 120)
+        return Results.BadRequest(new { message = "Registration failed" });
+
+    if (input.Password.Length > 128)
+        return Results.BadRequest(new { message = "Registration failed" });
+
+    var user = new ApplicationUser
+    {
+        Id = Guid.NewGuid(),
+        UserName = input.UserName.Trim(),
+        Email = input.Email.Trim(),
+        DisplayName = input.DisplayName.Trim()
+    };
+
+    var result = await users.CreateAsync(user, input.Password);
+    if (!result.Succeeded)
+    {
+        if (result.Errors.Any(e => e.Code == "DuplicateUserName" || e.Code == "DuplicateEmail"))
+            return Results.Conflict(new { message = "Account already exists" });
+
+        return Results.BadRequest(new { message = "Registration failed" });
+    }
+
+    var role = await users.AddToRoleAsync(user, DbSeeder.ReporterRole);
+    if (!role.Succeeded) throw new InvalidOperationException("Default role assignment failed.");
+
+    return Results.Created("/api/me", new RegistrationResponse(user.Id, user.UserName, user.DisplayName));
+});
         app.MapPost("/api/auth/login", async (LoginInput input, SignInManager<ApplicationUser> signIn) =>
         {
             if (string.IsNullOrWhiteSpace(input.UserName) || string.IsNullOrEmpty(input.Password))
@@ -75,3 +98,4 @@ public static class Lab03Identity
 
 public sealed record RegistrationInput(string? UserName, string? Email, string? DisplayName, string? Password);
 public sealed record LoginInput(string? UserName, string? Password);
+public sealed record RegistrationResponse(Guid Id, string UserName, string DisplayName);
