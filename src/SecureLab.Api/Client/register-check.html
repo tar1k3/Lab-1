@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Ручна перевірка реєстрації</title>
+<style>
+  body { font-family: sans-serif; max-width: 640px; margin: 40px auto; }
+  input, button { font-size: 1rem; padding: 8px; }
+  input { width: 100%; box-sizing: border-box; margin-bottom: 12px; }
+  button { cursor: pointer; }
+  pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+  <h1>Ручна перевірка реєстрації</h1>
+  <p>T-01: новий користувач. T-02: повтор тієї самої реєстрації.</p>
+
+  <label for="password">Пароль</label>
+  <input id="password" type="password" autocomplete="off">
+
+  <button id="run-btn">Перевірити T-01 і T-02</button>
+
+  <p>Пароль не записується у файл або вивід. Не відкривайте Payload.</p>
+
+  <pre id="result"></pre>
+
+<script type="module">
+async function run() {
+  const password = document.getElementById('password').value;
+  const resultEl = document.getElementById('result');
+  resultEl.textContent = '';
+
+  const userName = 'regmv' + Math.random().toString(36).slice(2, 8);
+  const email = `${userName}@example.com`;
+
+  const body = {
+    userName,
+    email,
+    displayName: 'Студент 01',
+    password
+  };
+
+  // T-01: перша реєстрація
+  const first = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const firstText = await first.text();
+  resultEl.textContent += `T-01 ${first.status} ${first.headers.get('content-type')} ${firstText}\n`;
+
+  // T-02: повторна реєстрація тими самими даними
+  const second = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const secondText = await second.text();
+  resultEl.textContent += `T-02 повтор ${second.status} ${second.headers.get('content-type')} ${secondText}`;
+
+  document.getElementById('password').value = '';
+}
+
+document.getElementById('run-btn').addEventListener('click', run);
+</script>
+</body>
+</html>
