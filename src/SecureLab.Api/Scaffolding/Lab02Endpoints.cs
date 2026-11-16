@@ -95,7 +95,7 @@ public static class Lab02Endpoints
                 incident.UpdatedAtUtc);
 
             return Results.Created($"/api/incidents/{incident.Id}", response);
-        });RequireAuthorization();
+        }).RequireAuthorization();
         app.MapGet("/api/incidents/search", async (
     string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
 {
