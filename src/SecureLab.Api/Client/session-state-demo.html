@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Session state demo</title></head>
+<body>
+  <p id="status">Перевірка…</p>
+  <input id="password" type="password" placeholder="Пароль">
+  <button id="login-btn">Увійти як alice</button>
+  <button id="logout-btn">Вийти</button>
+  <script type="module">
+    import { apiFetch } from './api-fetch.js';
+
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth/session-check', { credentials: 'same-origin' });
+        document.getElementById('status').textContent =
+          res.ok ? 'Сеанс активний' : 'Не ввійшли';
+      } catch { document.getElementById('status').textContent = 'Не ввійшли'; }
+    }
+
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      const password = document.getElementById('password').value;
+      await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ userName: 'alice', password })
+      });
+      document.getElementById('password').value = '';
+      await checkSession();
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+      await checkSession();
+    });
+
+    checkSession();
+  </script>
+</body>
+</html>
