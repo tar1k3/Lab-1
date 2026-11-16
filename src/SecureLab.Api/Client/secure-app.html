@@ -2,52 +2,57 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8">
-<title>Secure App — ЛР 03</title>
+<title>SecureLab — сценарій користувача</title>
 </head>
 <body>
-  <h1>Secure App</h1>
+  <h1>SecureLab — сценарій користувача</h1>
+  <p>Стан сеансу: <strong id="session-status">Перевірка…</strong></p>
 
   <section>
     <h2>Реєстрація</h2>
     <form id="register-form">
-      <input id="reg-username" name="userName" placeholder="Ім'я користувача" required>
-      <input id="reg-email" name="email" type="email" placeholder="Email" required>
-      <input id="reg-displayname" name="displayName" placeholder="Відображуване ім'я" required>
-      <input id="reg-password" name="password" type="password" placeholder="Пароль" required>
+      <label>Ім'я користувача <input id="reg-username" name="userName" required></label><br>
+      <label>Email <input id="reg-email" name="email" type="email" required></label><br>
+      <label>Відображуване ім'я <input id="reg-displayname" name="displayName" required></label><br>
+      <label>Пароль <input id="reg-password" name="password" type="password" required></label><br>
       <button>Зареєструватись</button>
     </form>
+    <p id="register-result"></p>
   </section>
 
   <section>
     <h2>Вхід</h2>
     <form id="login-form">
-      <input id="login-username" name="userName" placeholder="Ім'я користувача" required>
-      <input id="login-password" name="password" type="password" placeholder="Пароль" required>
+      <label>Ім'я користувача <input id="login-username" name="userName" required></label><br>
+      <label>Пароль <input id="login-password" name="password" type="password" required></label><br>
       <button>Увійти</button>
     </form>
+    <p id="login-result"></p>
   </section>
 
-  <section id="profile-block">
-    <h2>Профіль</h2>
+  <section id="profile-block" style="display:none">
+    <h2>Мій профіль</h2>
     <p>Id: <span id="profile-id"></span></p>
     <p>Ім'я: <span id="profile-username"></span></p>
     <p>Роль: <span id="profile-role"></span></p>
     <button id="logout-btn">Вийти</button>
+    <p id="logout-result"></p>
   </section>
 
   <section>
-    <h2>Створити інцидент</h2>
+    <h2>Новий інцидент</h2>
     <form id="incident-form">
-      <input id="inc-title" name="title" placeholder="Заголовок" required>
-      <textarea id="inc-description" name="description" placeholder="Опис" required></textarea>
-      <select id="inc-severity" name="severity">
-        <option>Low</option>
-        <option>Medium</option>
-        <option>High</option>
-      </select>
-      <input id="inc-occurred" name="occurredAtUtc" type="datetime-local" required>
+      <label>Заголовок <input id="inc-title" name="title" required></label><br>
+      <label>Опис<br><textarea id="inc-description" name="description" required></textarea></label><br>
+      <label>Severity
+        <select id="inc-severity" name="severity">
+          <option>Low</option><option>Medium</option><option>High</option>
+        </select>
+      </label><br>
+      <label>Час виникнення <input id="inc-occurred" name="occurredAtUtc" type="datetime-local" required></label><br>
       <button>Створити</button>
     </form>
+    <p id="incident-result"></p>
   </section>
 
   <script>
@@ -59,19 +64,23 @@
       });
     }
 
-    async function loadProfile() {
-      try {
-        const res = await apiFetch('/api/me');
-        if (!res.ok) { showAnonymous(); return; }
-        const me = await res.json();
-        document.getElementById('profile-id').textContent = me.id;
-        document.getElementById('profile-username').textContent = me.userName;
-        document.getElementById('profile-role').textContent = me.role;
-      } catch { showAnonymous(); }
+    async function refreshSessionStatus() {
+      const res = await apiFetch('/api/auth/session-check');
+      document.getElementById('session-status').textContent =
+        res.ok ? 'Сеанс активний' : 'Не ввійшли';
     }
 
-    function showAnonymous() {
-      document.getElementById('profile-block').style.display = 'none';
+    async function loadProfile() {
+      const res = await apiFetch('/api/me');
+      if (!res.ok) {
+        document.getElementById('profile-block').style.display = 'none';
+        return;
+      }
+      const me = await res.json();
+      document.getElementById('profile-id').textContent = me.id;
+      document.getElementById('profile-username').textContent = me.userName;
+      document.getElementById('profile-role').textContent = me.role;
+      document.getElementById('profile-block').style.display = 'block';
     }
 
     document.getElementById('register-form').addEventListener('submit', async (e) => {
@@ -82,7 +91,8 @@
         displayName: document.getElementById('reg-displayname').value,
         password: document.getElementById('reg-password').value
       };
-      await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify(body) });
+      const res = await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('register-result').textContent = `Register: ${res.status}`;
       document.getElementById('reg-password').value = '';
     });
 
@@ -92,14 +102,18 @@
         userName: document.getElementById('login-username').value,
         password: document.getElementById('login-password').value
       };
-      await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify(body) });
+      const res = await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('login-result').textContent = `Login: ${res.status}`;
       document.getElementById('login-password').value = '';
+      await refreshSessionStatus();
       await loadProfile();
     });
 
     document.getElementById('logout-btn').addEventListener('click', async () => {
-      await apiFetch('/api/auth/logout', { method: 'POST' });
-      showAnonymous();
+      const res = await apiFetch('/api/auth/logout', { method: 'POST' });
+      document.getElementById('logout-result').textContent = `Logout: ${res.status}`;
+      await refreshSessionStatus();
+      await loadProfile();
     });
 
     document.getElementById('incident-form').addEventListener('submit', async (e) => {
@@ -110,9 +124,13 @@
         severity: document.getElementById('inc-severity').value,
         occurredAtUtc: new Date(document.getElementById('inc-occurred').value).toISOString()
       };
-      await apiFetch('/api/incidents', { method: 'POST', body: JSON.stringify(body) });
+      const res = await apiFetch('/api/incidents', { method: 'POST', body: JSON.stringify(body) });
+      const resultText = res.ok ? await res.json() : await res.json().catch(() => null);
+      document.getElementById('incident-result').textContent =
+        `Create: ${res.status} ${resultText ? JSON.stringify(resultText) : ''}`;
     });
 
+    refreshSessionStatus();
     loadProfile();
   </script>
 </body>
