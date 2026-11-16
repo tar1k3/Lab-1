@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Secure App — ЛР 03</title>
+</head>
+<body>
+  <h1>Secure App</h1>
+
+  <section>
+    <h2>Реєстрація</h2>
+    <form id="register-form">
+      <input id="reg-username" name="userName" placeholder="Ім'я користувача" required>
+      <input id="reg-email" name="email" type="email" placeholder="Email" required>
+      <input id="reg-displayname" name="displayName" placeholder="Відображуване ім'я" required>
+      <input id="reg-password" name="password" type="password" placeholder="Пароль" required>
+      <button>Зареєструватись</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Вхід</h2>
+    <form id="login-form">
+      <input id="login-username" name="userName" placeholder="Ім'я користувача" required>
+      <input id="login-password" name="password" type="password" placeholder="Пароль" required>
+      <button>Увійти</button>
+    </form>
+  </section>
+
+  <section id="profile-block">
+    <h2>Профіль</h2>
+    <p>Id: <span id="profile-id"></span></p>
+    <p>Ім'я: <span id="profile-username"></span></p>
+    <p>Роль: <span id="profile-role"></span></p>
+    <button id="logout-btn">Вийти</button>
+  </section>
+
+  <section>
+    <h2>Створити інцидент</h2>
+    <form id="incident-form">
+      <input id="inc-title" name="title" placeholder="Заголовок" required>
+      <textarea id="inc-description" name="description" placeholder="Опис" required></textarea>
+      <select id="inc-severity" name="severity">
+        <option>Low</option>
+        <option>Medium</option>
+        <option>High</option>
+      </select>
+      <input id="inc-occurred" name="occurredAtUtc" type="datetime-local" required>
+      <button>Створити</button>
+    </form>
+  </section>
+
+  <script>
+    async function apiFetch(path, options = {}) {
+      return fetch(path, {
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...options.headers },
+        ...options,
+      });
+    }
+
+    async function loadProfile() {
+      try {
+        const res = await apiFetch('/api/me');
+        if (!res.ok) { showAnonymous(); return; }
+        const me = await res.json();
+        document.getElementById('profile-id').textContent = me.id;
+        document.getElementById('profile-username').textContent = me.userName;
+        document.getElementById('profile-role').textContent = me.role;
+      } catch { showAnonymous(); }
+    }
+
+    function showAnonymous() {
+      document.getElementById('profile-block').style.display = 'none';
+    }
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        userName: document.getElementById('reg-username').value,
+        email: document.getElementById('reg-email').value,
+        displayName: document.getElementById('reg-displayname').value,
+        password: document.getElementById('reg-password').value
+      };
+      await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('reg-password').value = '';
+    });
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        userName: document.getElementById('login-username').value,
+        password: document.getElementById('login-password').value
+      };
+      await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('login-password').value = '';
+      await loadProfile();
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+      showAnonymous();
+    });
+
+    document.getElementById('incident-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        title: document.getElementById('inc-title').value,
+        description: document.getElementById('inc-description').value,
+        severity: document.getElementById('inc-severity').value,
+        occurredAtUtc: new Date(document.getElementById('inc-occurred').value).toISOString()
+      };
+      await apiFetch('/api/incidents', { method: 'POST', body: JSON.stringify(body) });
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>
