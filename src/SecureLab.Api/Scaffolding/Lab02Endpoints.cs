@@ -76,7 +76,7 @@ public static class Lab02Endpoints
                 Severity = severity,
                 OccurredAtUtc = occurredAtUtc,
                 Status = IncidentStatus.New,
-                OwnerUserId = ownerUserId,,
+                OwnerUserId = ownerUserId,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             };
