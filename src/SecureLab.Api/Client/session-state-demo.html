@@ -1,38 +1,37 @@
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Session state demo</title></head>
-<body>
-  <p id="status">Перевірка…</p>
-  <input id="password" type="password" placeholder="Пароль">
-  <button id="login-btn">Увійти як alice</button>
-  <button id="logout-btn">Вийти</button>
-  <script type="module">
-    import { apiFetch } from './api-fetch.js';
+<!doctype html>
+<html lang="uk"><meta charset="utf-8"><title>Стан cookie-сеансу</title>
+<h1>Стан cookie-сеансу</h1>
+<p id="status">Перевірка…</p>
+<label>Ім'я користувача <input id="username"></label>
+<label>Пароль <input id="password" type="password"></label>
+<button id="login-btn">Увійти</button>
+<br><br>
+<button id="logout-btn">Вийти</button>
+<script>
+  const statusEl = document.querySelector("#status");
 
-    async function checkSession() {
-      try {
-        const res = await fetch('/api/auth/session-check', { credentials: 'same-origin' });
-        document.getElementById('status').textContent =
-          res.ok ? 'Сеанс активний' : 'Не ввійшли';
-      } catch { document.getElementById('status').textContent = 'Не ввійшли'; }
-    }
+  async function checkSession() {
+    const res = await fetch("/api/auth/session-check");
+    statusEl.textContent = res.ok ? "Увійшли." : "Не ввійшли.";
+  }
 
-    document.getElementById('login-btn').addEventListener('click', async () => {
-      const password = document.getElementById('password').value;
-      await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ userName: 'alice', password })
-      });
-      document.getElementById('password').value = '';
-      await checkSession();
+  document.querySelector("#login-btn").addEventListener("click", async () => {
+    const userName = document.querySelector("#username").value;
+    const password = document.querySelector("#password").value;
+    await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userName, password }),
     });
+    document.querySelector("#password").value = "";
+    await checkSession();
+  });
 
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-      await apiFetch('/api/auth/logout', { method: 'POST' });
-      await checkSession();
-    });
+  document.querySelector("#logout-btn").addEventListener("click", async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    await checkSession();
+  });
 
-    checkSession();
-  </script>
-</body>
+  checkSession();
+</script>
 </html>
