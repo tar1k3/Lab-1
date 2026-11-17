@@ -10,19 +10,26 @@ namespace SecureLab.Api.Tests;
 public sealed class IncidentCreationTests(SecureLabApiFactory factory)
     : IClassFixture<SecureLabApiFactory>
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    // Пароль береться лише зі змінної середовища, не з коду
+    private static string Password =>
+        Environment.GetEnvironmentVariable("SeedUsers__Password")
+        ?? throw new InvalidOperationException("Set local SeedUsers__Password outside Git.");
 
     [Fact]
     public async Task Post_InvalidDto_Returns400()
     {
+        using var client = await factory.LoginAsync("alice", Password);
+
         var body = new { title = "", description = "", severity = "7", occurredAtUtc = (DateTimeOffset?)null };
-        using var response = await _client.PostAsJsonAsync("/api/incidents", body);
+        using var response = await client.PostAsJsonAsync("/api/incidents", body);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
     public async Task Post_DuplicateTitle_Returns409()
     {
+        using var client = await factory.LoginAsync("alice", Password);
+
         var title = $"Regression-{Guid.NewGuid():N}";
         var body = new
         {
@@ -32,10 +39,10 @@ public sealed class IncidentCreationTests(SecureLabApiFactory factory)
             occurredAtUtc = DateTimeOffset.UtcNow.AddMinutes(-10)
         };
 
-        using var first = await _client.PostAsJsonAsync("/api/incidents", body);
+        using var first = await client.PostAsJsonAsync("/api/incidents", body);
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
-        using var second = await _client.PostAsJsonAsync("/api/incidents", body);
+        using var second = await client.PostAsJsonAsync("/api/incidents", body);
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
 
         await using var scope = factory.Services.CreateAsyncScope();
