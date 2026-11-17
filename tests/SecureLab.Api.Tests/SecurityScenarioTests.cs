@@ -58,4 +58,19 @@ public async Task A02_LoginThenMe_ReturnsCurrentUser()
     Assert.Equal(AliceId, me.Id);
     Assert.Equal("alice", me.UserName);
 }
+[Fact]
+public async Task A03_MeWithForeignDemoHeader_StaysCurrentUser()
+{
+    using var client = await factory.LoginAsync("alice", Password);
+
+    using var request = new HttpRequestMessage(HttpMethod.Get, "/api/me");
+    request.Headers.Add("X-Demo-UserId", BobId.ToString());
+
+    using var response = await client.SendAsync(request);
+
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    var me = await response.Content.ReadFromJsonAsync<MeDto>();
+    Assert.NotNull(me);
+    Assert.Equal(AliceId, me.Id);   // не Bob
+}
 }
