@@ -123,4 +123,21 @@ public async Task A05_CreateWithForeignOwner_OwnerStaysPrincipal()
     Assert.NotNull(created);
     Assert.Equal(BobId, await GetOwnerIdAsync(created.Id));   // не Alice
 }
+[Fact]
+public async Task A06_Logout_ThenProtectedRequestReturns401()
+{
+    using var client = await factory.LoginAsync("alice", Password);
+
+    // До logout сеанс активний
+    using var before = await client.GetAsync("/api/me");
+    Assert.Equal(HttpStatusCode.OK, before.StatusCode);
+
+    // Logout тим самим клієнтом
+    using var logout = await client.PostAsync("/api/auth/logout", null);
+    Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+
+    // Після logout той самий клієнт отримує 401
+    using var after = await client.GetAsync("/api/me");
+    Assert.Equal(HttpStatusCode.Unauthorized, after.StatusCode);
+}
 }
