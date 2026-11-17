@@ -191,4 +191,35 @@ public async Task CookieFlags_LoginOverHttps_SetsSecureAttributes()
     Assert.Contains("path=/", attributes);
     Assert.DoesNotContain(attributes, a => a.StartsWith("expires="));
 }
+[Fact]
+public async Task RateLimit_Login_Returns429ThenRecoversAfterWindow()
+{
+    // Власний лічильник ліміту
+    using var host = factory.WithWebHostBuilder(_ => { });
+    using var client = host.CreateClient(new WebApplicationFactoryClientOptions
+    {
+        BaseAddress = new Uri("https://localhost"),
+        AllowAutoRedirect = false
+    });
+    var wrong = new { userName = "alice", password = Password + "-wrong" };
+
+    // 10 спроб у межах ліміту: звичайна відмова 401
+    for (var i = 0; i < 10; i++)
+    {
+        using var attempt = await client.PostAsJsonAsync("/api/auth/login", wrong);
+        Assert.Equal(HttpStatusCode.Unauthorized, attempt.StatusCode);
+    }
+
+    // 11-та спроба: 429 — і для існуючого, і для неіснуючого акаунта
+    using var limitedExisting = await client.PostAsJsonAsync("/api/auth/login", wrong);
+    using var limitedUnknown = await client.PostAsJsonAsync("/api/auth/login",
+        new { userName = $"nobody-{Guid.NewGuid():N}", password = "whatever-123" });
+    Assert.Equal(HttpStatusCode.TooManyRequests, limitedExisting.StatusCode);
+    Assert.Equal(HttpStatusCode.TooManyRequests, limitedUnknown.StatusCode);
+
+    // Після вікна ліміт відновлюється
+    await Task.Delay(TimeSpan.FromSeconds(31));
+    using var recovered = await client.PostAsJsonAsync("/api/auth/login", wrong);
+    Assert.Equal(HttpStatusCode.Unauthorized, recovered.StatusCode);
+}
 }
