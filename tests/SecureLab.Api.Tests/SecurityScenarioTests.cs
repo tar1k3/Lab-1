@@ -1,3 +1,4 @@
+
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -38,4 +39,23 @@ public class SecurityScenarioTests(SecureLabApiFactory factory) : IClassFixture<
         Assert.Empty(response.Headers.WwwAuthenticate);             // без Bearer challenge
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
+    // DTO для читання відповіді /api/me у тестах
+private sealed record MeDto(Guid Id, string UserName, string Role);
+
+private static readonly Guid AliceId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+private static readonly Guid BobId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+
+[Fact]
+public async Task A02_LoginThenMe_ReturnsCurrentUser()
+{
+    using var client = await factory.LoginAsync("alice", Password);
+
+    using var response = await client.GetAsync("/api/me");
+
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    var me = await response.Content.ReadFromJsonAsync<MeDto>();
+    Assert.NotNull(me);
+    Assert.Equal(AliceId, me.Id);
+    Assert.Equal("alice", me.UserName);
+}
 }
