@@ -140,4 +140,29 @@ public async Task A06_Logout_ThenProtectedRequestReturns401()
     using var after = await client.GetAsync("/api/me");
     Assert.Equal(HttpStatusCode.Unauthorized, after.StatusCode);
 }
+private async Task<string> LoginFailureShapeAsync(string userName, string password)
+{
+    using var client = CreateAnonymousClient();
+    using var response = await client.PostAsJsonAsync("/api/auth/login", new { userName, password });
+
+    var body = await response.Content.ReadAsStringAsync();
+    using var json = JsonDocument.Parse(body);
+    var root = json.RootElement;
+
+    string Field(string name) =>
+        root.TryGetProperty(name, out var value) ? value.ToString() : "<none>";
+
+    return $"{(int)response.StatusCode}|{response.Content.Headers.ContentType?.MediaType}|" +
+           $"{Field("type")}|{Field("title")}|{Field("status")}|{Field("detail")}";
+}
+
+[Fact]
+public async Task A07_UnknownUserAndWrongPassword_SameResult()
+{
+    var unknownUser = await LoginFailureShapeAsync($"nobody-{Guid.NewGuid():N}", Password);
+    var wrongPassword = await LoginFailureShapeAsync("alice", Password + "-wrong");
+
+    Assert.StartsWith("401", unknownUser);
+    Assert.Equal(unknownUser, wrongPassword);
+}
 }
