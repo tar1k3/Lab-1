@@ -2,7 +2,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
-
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using SecureLab.Api.Data;
+using SecureLab.Api.Scaffolding;
 namespace SecureLab.Api.Tests;
 
 // Безпекові сценарії ЛР3: A-01 … A-07
@@ -72,5 +76,32 @@ public async Task A03_MeWithForeignDemoHeader_StaysCurrentUser()
     var me = await response.Content.ReadFromJsonAsync<MeDto>();
     Assert.NotNull(me);
     Assert.Equal(AliceId, me.Id);   // не Bob
+}
+[Fact]
+public async Task A04_CreateWithoutOwner_OwnerFromPrincipal()
+{
+    using var client = await factory.LoginAsync("bob", Password);
+
+    using var response = await client.PostAsJsonAsync("/api/incidents", new
+    {
+        title = $"A04-{Guid.NewGuid():N}",   // унікальний title
+        description = "Створено Bob без поля owner",
+        severity = "Low",
+        occurredAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1)
+    });
+
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    var created = await response.Content.ReadFromJsonAsync<CreatedDto>();
+    Assert.NotNull(created);
+    Assert.Equal(BobId, await GetOwnerIdAsync(created.Id));
+}
+private sealed record CreatedDto(Guid Id);
+
+private async Task<Guid> GetOwnerIdAsync(Guid incidentId)
+{
+    await using var scope = factory.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<SecureLabDbContext>();
+    var incident = await db.Incidents.AsNoTracking().SingleAsync(i => i.Id == incidentId);
+    return incident.OwnerUserId;
 }
 }
