@@ -104,4 +104,23 @@ private async Task<Guid> GetOwnerIdAsync(Guid incidentId)
     var incident = await db.Incidents.AsNoTracking().SingleAsync(i => i.Id == incidentId);
     return incident.OwnerUserId;
 }
+[Fact]
+public async Task A05_CreateWithForeignOwner_OwnerStaysPrincipal()
+{
+    using var client = await factory.LoginAsync("bob", Password);
+
+    using var response = await client.PostAsJsonAsync("/api/incidents", new
+    {
+        title = $"A05-{Guid.NewGuid():N}",
+        description = "Bob намагається підставити власника Alice",
+        severity = "Low",
+        occurredAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+        ownerUserId = AliceId   // чужий owner у JSON
+    });
+
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    var created = await response.Content.ReadFromJsonAsync<CreatedDto>();
+    Assert.NotNull(created);
+    Assert.Equal(BobId, await GetOwnerIdAsync(created.Id));   // не Alice
+}
 }
