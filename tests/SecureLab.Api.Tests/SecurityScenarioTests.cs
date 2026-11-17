@@ -165,4 +165,30 @@ public async Task A07_UnknownUserAndWrongPassword_SameResult()
     Assert.StartsWith("401", unknownUser);
     Assert.Equal(unknownUser, wrongPassword);
 }
+[Fact]
+public async Task CookieFlags_LoginOverHttps_SetsSecureAttributes()
+{
+    using var client = CreateAnonymousClient();
+
+    using var response = await client.PostAsJsonAsync("/api/auth/login",
+        new { userName = "alice", password = Password });
+
+    Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+    const string cookieName = ".AspNetCore.Identity.Application=";
+    var matching = response.Headers.GetValues("Set-Cookie")
+        .Where(value => value.StartsWith(cookieName))
+        .ToArray();
+    Assert.True(matching.Length == 1);
+
+    var attributes = matching[0].Split(';').Skip(1)
+        .Select(part => part.Trim().ToLowerInvariant())
+        .ToArray();
+
+    Assert.Contains("httponly", attributes);
+    Assert.Contains("secure", attributes);
+    Assert.Contains("samesite=lax", attributes);
+    Assert.Contains("path=/", attributes);
+    Assert.DoesNotContain(attributes, a => a.StartsWith("expires="));
+}
 }
