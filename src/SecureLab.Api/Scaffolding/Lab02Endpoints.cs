@@ -96,6 +96,57 @@ public static class Lab02Endpoints
 
             return Results.Created($"/api/incidents/{incident.Id}", response);
         }).RequireAuthorization();
+        // ВИПРАВЛЕНО (ЛР 4): рішення авторизації ухвалюється до будь-якої зміни
+        app.MapPut("/api/incidents/{id:guid}", async (
+            Guid id,
+            UpdateIncidentRequest request,
+            ClaimsPrincipal user,
+            SecureLabDbContext db,
+            CancellationToken ct) =>
+        {
+            // Ідентичність і роль беруться лише з перевіреного principal
+            var userIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var currentUserId))
+                return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
+
+            var isAnalyst = user.IsInRole(DbSeeder.AnalystRole);
+
+            var incident = await db.Incidents.FirstOrDefaultAsync(i => i.Id == id, ct);
+
+            // Неіснуючий і чужий ресурс для не-Analyst дають однакову відповідь 404
+            if (incident is null || (incident.OwnerUserId != currentUserId && !isAnalyst))
+                return Results.Problem(
+                    title: "Інцидент не знайдено",
+                    statusCode: StatusCodes.Status404NotFound);
+
+            // Analyst бачить чужий інцидент, але змінювати його не може: 403
+            if (incident.OwnerUserId != currentUserId)
+                return Results.Problem(
+                    title: "Дію заборонено",
+                    statusCode: StatusCodes.Status403Forbidden);
+
+            var errors = new Dictionary<string, string[]>();
+            if (string.IsNullOrWhiteSpace(request.Title))
+                errors["title"] = ["Заголовок обов'язковий."];
+            else if (request.Title.Length > 160)
+                errors["title"] = ["Заголовок не довший за 160 символів."];
+            if (string.IsNullOrWhiteSpace(request.Description))
+                errors["description"] = ["Опис обов'язковий."];
+            else if (request.Description.Length > 4000)
+                errors["description"] = ["Опис не довший за 4000 символів."];
+            if (errors.Count > 0)
+                return Results.ValidationProblem(errors);
+
+            // Змінюються лише поля DTO; власник, статус і severity задає лише сервер
+            incident.Title = request.Title.Trim();
+            incident.Description = request.Description.Trim();
+            incident.OccurredAtUtc = request.OccurredAtUtc.ToUniversalTime();
+            incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            await db.SaveChangesAsync(ct);
+
+            return Results.NoContent();
+        }).RequireAuthorization();
         app.MapGet("/api/incidents/search", async (
     string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
 {
@@ -164,3 +215,8 @@ public sealed record IncidentListItemResponse(
     string Status,
     DateTimeOffset OccurredAtUtc,
     DateTimeOffset CreatedAtUtc);
+
+public sealed record UpdateIncidentRequest(
+    string Title,
+    string Description,
+    DateTimeOffset OccurredAtUtc);
