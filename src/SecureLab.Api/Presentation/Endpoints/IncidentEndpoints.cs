@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using SecureLab.Api.Application.Incidents;
+using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using SecureLab.Api.Presentation.Contracts;
 
@@ -9,7 +11,8 @@ public static class IncidentEndpoints
     public static IEndpointRouteBuilder MapIncidentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/incidents")
-            .WithTags("Incidents");
+            .WithTags("Incidents")
+            .RequireAuthorization();
 
         group.MapGet("/", GetListAsync)
             .WithName("GetIncidents")
@@ -56,15 +59,25 @@ public static class IncidentEndpoints
 
     private static async Task<IResult> GetDetailsAsync(
         Guid id,
+        ClaimsPrincipal user,
         IncidentQueries queries,
         CancellationToken cancellationToken)
     {
-        var incident = await queries.GetDetailsAsync(id, cancellationToken);
-        return incident is null
-            ? Results.Problem(
-                title: "Інцидент не знайдено",
-                detail: $"Інцидент '{id}' не існує.",
-                statusCode: StatusCodes.Status404NotFound)
-            : Results.Ok(incident);
+        // Ідентичність і роль беруться лише з перевіреного principal, а не з запиту
+        var userIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var currentUserId))
+        {
+            return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        var isAnalyst = user.IsInRole(DbSeeder.AnalystRole);
+
+        var incident = await queries.GetDetailsAsync(id, currentUserId, isAnalyst, cancellationToken);
+        return incident is null ? IncidentNotFound() : Results.Ok(incident);
     }
+
+    // Єдина відповідь для чужого і неіснуючого ресурсу: розрізнити їх неможливо
+    private static IResult IncidentNotFound() => Results.Problem(
+        title: "Інцидент не знайдено",
+        statusCode: StatusCodes.Status404NotFound);
 }
