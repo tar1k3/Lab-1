@@ -36,9 +36,19 @@ public static class IncidentEndpoints
 
     private static async Task<IResult> GetListAsync(
         string? status,
+        ClaimsPrincipal user,
         IncidentQueries queries,
         CancellationToken cancellationToken)
     {
+        // Ідентичність і роль беруться лише з перевіреного principal
+        var userIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var currentUserId))
+        {
+            return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        var isAnalyst = user.IsInRole(DbSeeder.AnalystRole);
+
         IncidentStatus? parsedStatus = null;
         if (status is not null)
         {
@@ -54,7 +64,7 @@ public static class IncidentEndpoints
             parsedStatus = candidate;
         }
 
-        return Results.Ok(await queries.GetListAsync(parsedStatus, cancellationToken));
+        return Results.Ok(await queries.GetListAsync(parsedStatus, currentUserId, isAnalyst, cancellationToken));
     }
 
     private static async Task<IResult> GetDetailsAsync(
