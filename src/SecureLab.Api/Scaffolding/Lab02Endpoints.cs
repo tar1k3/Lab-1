@@ -92,10 +92,10 @@ public static class Lab02Endpoints
             return Results.Created($"/api/incidents/{incident.Id}", response);
         });
         app.MapGet("/api/incidents/search", async (
-    string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
+    string? q, string? sortBy, SecureLabDbContext db, ILogger<Program> logger, CancellationToken ct) =>
 {
     var pattern = "%" + EscapeLike(q ?? "") + "%";
-
+    logger.LogInformation("q={Q} pattern={P}", q, pattern);
     var found = db.Incidents.AsNoTracking()
         .Where(i => EF.Functions.ILike(i.Title, pattern, "\\")
                  || EF.Functions.ILike(i.Description, pattern, "\\"));
