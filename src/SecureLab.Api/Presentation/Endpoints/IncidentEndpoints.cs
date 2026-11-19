@@ -39,6 +39,16 @@ public static class IncidentEndpoints
             .WithName("GetIncidentSeveritySummary")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
+        // Дочірній ресурс: окрема група, теж лише для автентифікованих
+        var comments = endpoints.MapGroup("/api/incident-comments")
+            .WithTags("IncidentComments")
+            .RequireAuthorization();
+
+        comments.MapGet("/{id:guid}", GetCommentAsync)
+            .WithName("GetIncidentComment")
+            .Produces<IncidentCommentResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         return endpoints;
     }
 
@@ -137,6 +147,31 @@ public static class IncidentEndpoints
         await db.SaveChangesAsync(cancellationToken);
 
         return Results.NoContent();
+    }
+
+    // ЛР 4: доступ до коментаря через право на батьківський інцидент
+    private static async Task<IResult> GetCommentAsync(
+        Guid id,
+        ClaimsPrincipal user,
+        IncidentQueries queries,
+        CancellationToken cancellationToken)
+    {
+        var userIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var currentUserId))
+        {
+            return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        var isAnalyst = user.IsInRole(DbSeeder.AnalystRole);
+
+        var comment = await queries.GetCommentAsync(id, currentUserId, isAnalyst, cancellationToken);
+
+        // Чужий, internal для Reporter і неіснуючий коментар: однаковий 404
+        return comment is null
+            ? Results.Problem(
+                title: "Коментар не знайдено",
+                statusCode: StatusCodes.Status404NotFound)
+            : Results.Ok(comment);
     }
 
     // Єдина відповідь для чужого і неіснуючого ресурсу: розрізнити їх неможливо
