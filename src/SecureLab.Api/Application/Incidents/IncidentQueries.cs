@@ -68,4 +68,26 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
                     .ToList()))
             .SingleOrDefaultAsync(cancellationToken);
     }
+
+    public Task<IncidentCommentResponse?> GetCommentAsync(
+        Guid id,
+        Guid currentUserId,
+        bool isAnalyst,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Loading incident comment {CommentId}", id);
+
+        // Доступ до коментаря визначається правом на батьківський інцидент
+        return dbContext.IncidentComments
+            .AsNoTracking()
+            .Where(comment => comment.Id == id
+                && (isAnalyst
+                    || (comment.Incident.OwnerUserId == currentUserId && !comment.IsInternal)))
+            .Select(comment => new IncidentCommentResponse(
+                comment.Id,
+                comment.Author.DisplayName,
+                comment.Text,
+                comment.CreatedAtUtc))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
 }
