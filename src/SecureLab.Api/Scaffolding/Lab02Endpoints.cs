@@ -148,24 +148,47 @@ public static class Lab02Endpoints
             return Results.NoContent();
         }).RequireAuthorization();
         // ВРАЗЛИВО (ЛР 4): лише вхід, роль не перевіряється, статус береться з body
+                // ВИПРАВЛЕНО (ЛР 4): роль Analyst, перехід лише з New, наступний статус визначає сервер
         app.MapPost("/api/incidents/{id:guid}/triage", async (
             Guid id,
-            TriageRequest request,
+            ClaimsPrincipal user,
+            HttpContext httpContext,
+            ILoggerFactory loggerFactory,
             SecureLabDbContext db,
             CancellationToken ct) =>
         {
+            // Ідентичність і роль беруться лише з перевіреного principal, тіла запиту немає
+            var userIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var currentUserId))
+                return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
+
             var incident = await db.Incidents.FirstOrDefaultAsync(i => i.Id == id, ct);
             if (incident is null)
-                return Results.NotFound();
+                return Results.Problem(
+                    title: "Інцидент не знайдено",
+                    statusCode: StatusCodes.Status404NotFound);
 
-            if (!Enum.TryParse<IncidentStatus>(request.Status, ignoreCase: true, out var newStatus)
-                || !Enum.IsDefined(newStatus))
-                return Results.ValidationProblem(new Dictionary<string, string[]>
-                {
-                    ["status"] = ["Невідомий статус."]
-                });
+            // Privileged action: лише Analyst; власник без ролі права не має
+            if (!user.IsInRole(DbSeeder.AnalystRole))
+            {
+                var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
+                loggerFactory.CreateLogger("SecureLab.Audit").LogWarning(
+                    "Audit authorization.denied: user {UserId}, action {Action}, incident {IncidentId}, result {Result}, at {At}, trace {TraceId}",
+                    currentUserId, "incident.triage", incident.Id, "denied", DateTimeOffset.UtcNow, traceId);
 
-            incident.Status = newStatus;
+                return Results.Problem(
+                    title: "Дію заборонено",
+                    statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            // Перехід дозволено лише зі статусу New
+            if (incident.Status != IncidentStatus.New)
+                return Results.Problem(
+                    title: "Triage можливий лише для інциденту у статусі New",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            // Наступний статус визначає сервер, а не клієнт
+            incident.Status = IncidentStatus.Triaged;
             incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(ct);
 
