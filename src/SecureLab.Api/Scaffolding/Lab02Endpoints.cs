@@ -147,6 +147,30 @@ public static class Lab02Endpoints
 
             return Results.NoContent();
         }).RequireAuthorization();
+        // ВРАЗЛИВО (ЛР 4): лише вхід, роль не перевіряється, статус береться з body
+        app.MapPost("/api/incidents/{id:guid}/triage", async (
+            Guid id,
+            TriageRequest request,
+            SecureLabDbContext db,
+            CancellationToken ct) =>
+        {
+            var incident = await db.Incidents.FirstOrDefaultAsync(i => i.Id == id, ct);
+            if (incident is null)
+                return Results.NotFound();
+
+            if (!Enum.TryParse<IncidentStatus>(request.Status, ignoreCase: true, out var newStatus)
+                || !Enum.IsDefined(newStatus))
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["status"] = ["Невідомий статус."]
+                });
+
+            incident.Status = newStatus;
+            incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+
+            return Results.Ok(new { incident.Id, Status = incident.Status.ToString() });
+        }).RequireAuthorization();
         app.MapGet("/api/incidents/search", async (
     string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
 {
@@ -220,3 +244,5 @@ public sealed record UpdateIncidentRequest(
     string Title,
     string Description,
     DateTimeOffset OccurredAtUtc);
+
+public sealed record TriageRequest(string? Status);
