@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using System.Security.Claims;
+using System.Diagnostics;
 namespace SecureLab.Api.Scaffolding;
 
 public static class Lab02Endpoints
@@ -268,4 +269,3 @@ public sealed record UpdateIncidentRequest(
     string Description,
     DateTimeOffset OccurredAtUtc);
 
-public sealed record TriageRequest(string? Status);
