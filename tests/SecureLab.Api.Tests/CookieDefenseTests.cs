@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
 
-namespace Secure.Api.Tests;
+namespace SecureLab.Api.Tests;
 
 public class CookieDefenseTests(SecureLabApiFactory f, ITestOutputHelper o) : IClassFixture<SecureLabApiFactory>
 {
