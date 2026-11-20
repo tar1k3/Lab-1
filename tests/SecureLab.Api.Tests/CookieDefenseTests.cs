@@ -8,7 +8,7 @@ using Xunit.Abstractions;
 
 namespace Secure.Api.Tests;
 
-public class CookieDefenseTests(SecureLabApiFactory f, ITestOutputHelper o) : IClassFix<SecureLabApiFactory>
+public class CookieDefenseTests(SecureLabApiFactory f, ITestOutputHelper o) : IClassFixture<SecureLabApiFactory>
 {
   static readonly string Name = "DefenseUnused";
 
