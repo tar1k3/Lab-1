@@ -10,7 +10,7 @@ namespace SecureLab.Api.Tests;
 
 public class CookieDefenseTests(SecureLabApiFactory f, ITestOutputHelper o) : IClassFixture<SecureLabApiFactory>
 {
-  static readonly string Name = "DefenseUnused";
+  static readonly string Name = IdentityConstants.ApplicationScheme;
 
   [Fact]
   public async Task BobLogin_Http()
