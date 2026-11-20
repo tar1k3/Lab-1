@@ -19,7 +19,7 @@ public class CookieDefenseTests(SecureLabApiFactory f, ITestOutputHelper o) : IC
     Name, x => x.Cookie.SecurePolicy = CookieSecurePolicy.Always)));
     var client = host.CreateClient(new() { BaseAddress = new Uri("http://localhost") });
     var res = await client.PostAsJsonAsync("/api/auth/login", 
-    new { userName = "bob", password = Environment.GetEnviromentVariable("SeedUsers__Password") });
+    new { userName = "bob", password = Environment.GetEnvironmentVariable("SeedUsers__Password") });
     var attrs = res.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith(".AspNetCore.Identity.Application="))
     .Split(';').Skip(1).Select(a => a.Trim().ToLower()).ToArray();
     o.WriteLine($"{Name} | login {(int)res.StatusCode} | {string.Join("; ", attrs)}");
