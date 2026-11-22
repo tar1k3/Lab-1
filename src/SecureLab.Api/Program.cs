@@ -73,19 +73,27 @@ app.UseStatusCodePages();
 
 var csp = "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'";
 
+// F-01: заголовки ставляться через OnStarting безпосередньо перед надсиланням відповіді,
+// тому ExceptionHandlerMiddleware, який очищує відповідь при помилці, їх не прибирає (зокрема для 500).
 app.Use(async (context, next) =>
 {
-    context.Response.Headers.XContentTypeOptions = "nosniff";
-    context.Response.Headers.Append("Referrer-Policy", "no-referrer");
-
     var isDevelopmentApiReference =
         app.Environment.IsDevelopment()
         && context.Request.Path.StartsWithSegments("/scalar");
 
-    if (!isDevelopmentApiReference)
+    context.Response.OnStarting(() =>
     {
-        context.Response.Headers["Content-Security-Policy"] = csp;
-    }
+        var headers = context.Response.Headers;
+        headers.XContentTypeOptions = "nosniff";
+        headers["Referrer-Policy"] = "no-referrer";
+
+        if (!isDevelopmentApiReference)
+        {
+            headers["Content-Security-Policy"] = csp;
+        }
+
+        return Task.CompletedTask;
+    });
 
     await next(context);
 });

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -57,5 +58,41 @@ public sealed class ProductionProfileTests(SecureLabApiFactory factory) : IClass
         // Triage від Reporter -> 403
         using var triage = await alice.PostAsync($"/api/incidents/{DbSeeder.AliceIncidentId}/triage", null);
         Assert.Equal(HttpStatusCode.Forbidden, triage.StatusCode);
+    }
+
+    // F-01: відповідь 500 має містити ті самі заголовки безпеки, що й решта відповідей.
+    // Production-host з навмисно недосяжною БД (порт 54399): login звертається до сховища й падає.
+    [Fact]
+    public async Task UnexpectedError_KeepsSecurityHeaders()
+    {
+        const string unreachable =
+            "Host=127.0.0.1;Port=54399;Database=securelab;Username=securelab;"
+            + "Password=unreachable-study-value;Include Error Detail=false";
+
+        using var broken = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.UseSetting("ConnectionStrings:SecureLab", unreachable);
+        });
+        using var client = broken.CreateClient(new()
+        {
+            BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false
+        });
+
+        using var response = await client.PostAsJsonAsync("/api/auth/login",
+            new { userName = "alice", password = "NotARealPassword1!" });
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Contains("frame-ancestors 'none'",
+            response.Headers.GetValues("Content-Security-Policy").Single());
+
+        // Клієнт отримує лише безпечний ProblemDetails без stack trace і connection string
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("traceId", body);
+        Assert.DoesNotContain("Exception", body);
+        Assert.DoesNotContain("54399", body);
     }
 }
