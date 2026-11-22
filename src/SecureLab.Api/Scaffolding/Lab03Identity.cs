@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
+using SecureLab.Api.Security;
 using System.Security.Claims;
 namespace SecureLab.Api.Scaffolding;
 
@@ -103,7 +104,7 @@ app.MapPost("/api/auth/logout", async (
     logger.LogInformation("Auth event {EventType}: result {Result}, UserId {UserId}, trace {TraceId}",
         "logout", "success", userId, httpContext.TraceIdentifier);
     return Results.NoContent();
-});
+}).AddEndpointFilter<AntiforgeryFilter>();
 
 app.MapGet("/api/me", (HttpContext context) =>
 {

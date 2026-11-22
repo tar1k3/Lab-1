@@ -149,7 +149,8 @@ public static class Lab02Endpoints
             await db.SaveChangesAsync(ct);
 
             return Results.NoContent();
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+          .AddEndpointFilter<AntiforgeryFilter>();
         // ВРАЗЛИВО (ЛР 4): лише вхід, роль не перевіряється, статус береться з body
                 // ВИПРАВЛЕНО (ЛР 4): роль Analyst, перехід лише з New, наступний статус визначає сервер
         app.MapPost("/api/incidents/{id:guid}/triage", async (
@@ -196,7 +197,8 @@ public static class Lab02Endpoints
             await db.SaveChangesAsync(ct);
 
             return Results.Ok(new { incident.Id, Status = incident.Status.ToString() });
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+          .AddEndpointFilter<AntiforgeryFilter>();
         app.MapGet("/api/incidents/search", async (
     string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
 {

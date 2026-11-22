@@ -41,6 +41,7 @@ public sealed class ProductionProfileTests(SecureLabApiFactory factory) : IClass
 
         // Вхід через той самий Production host; дозволений GET -> 204
         using var alice = await production.LoginAsync("alice", Password);
+        await alice.UseAntiforgeryTokenAsync();
         using var allowed = await alice.GetAsync("/api/auth/session-check");
         Assert.Equal(HttpStatusCode.NoContent, allowed.StatusCode);
 

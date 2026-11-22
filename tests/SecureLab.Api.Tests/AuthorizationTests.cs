@@ -24,6 +24,11 @@ public sealed class AuthorizationFixture : IAsyncLifetime
         Alice = await Factory.LoginAsync("alice", Password);
         Bob = await Factory.LoginAsync("bob", Password);
         Morgan = await Factory.LoginAsync("morgan", Password);
+
+        // ЛР 6: кожен cookie-клієнт отримує власний antiforgery-токен для змінювальних запитів
+        await Alice.UseAntiforgeryTokenAsync();
+        await Bob.UseAntiforgeryTokenAsync();
+        await Morgan.UseAntiforgeryTokenAsync();
     }
 
     public async Task DisposeAsync()

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SecureLab.Api.Data;
@@ -19,16 +20,21 @@ public sealed class IncidentCreationTests(SecureLabApiFactory factory)
     public async Task Post_InvalidDto_Returns400()
     {
         using var client = await factory.LoginAsync("alice", Password);
+        await client.UseAntiforgeryTokenAsync();
 
         var body = new { title = "", description = "", severity = "7", occurredAtUtc = (DateTimeOffset?)null };
         using var response = await client.PostAsJsonAsync("/api/incidents", body);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        // 400 саме від validation, а не від відмови antiforgery
+        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty("severity", out _));
     }
 
     [Fact]
     public async Task Post_DuplicateTitle_Returns409()
     {
         using var client = await factory.LoginAsync("alice", Password);
+        await client.UseAntiforgeryTokenAsync();
 
         var title = $"Regression-{Guid.NewGuid():N}";
         var body = new
