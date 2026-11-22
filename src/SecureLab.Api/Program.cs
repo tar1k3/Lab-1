@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Antiforgery;
 using SecureLab.Api.Scaffolding;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -57,6 +58,19 @@ if (builder.Environment.IsDevelopment())
         });
     });
 }
+
+// ЛР 6: antiforgery для cookie-автентифікованих змінювальних маршрутів.
+// Контракт сервер <-> клієнт: request token у header X-CSRF-TOKEN, cookie-частина пари — securelab-af.
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "securelab-af";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+});
 
 var app = builder.Build();
 
@@ -128,6 +142,15 @@ app.MapGet("/health", async (SecureLabDbContext dbContext, CancellationToken can
 app.MapIncidentEndpoints();
 app.MapLab03Identity();
 app.MapLab02Endpoints();
+// Видача antiforgery-токена: cookie-частина пари йде в Set-Cookie, request token — у JSON.
+// Лише для автентифікованого користувача, тому токен прив'язано до поточного principal.
+app.MapGet("/api/auth/csrf-token", (IAntiforgery antiforgery, HttpContext context) =>
+{
+    var tokens = antiforgery.GetAndStoreTokens(context);
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(new { token = tokens.RequestToken });
+}).RequireAuthorization();
+
 app.MapFallbackToFile("index.html");
 
 app.Run();
