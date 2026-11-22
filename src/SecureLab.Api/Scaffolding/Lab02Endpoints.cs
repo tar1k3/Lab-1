@@ -199,12 +199,18 @@ public static class Lab02Endpoints
             return Results.Ok(new { incident.Id, Status = incident.Status.ToString() });
         }).RequireAuthorization()
           .AddEndpointFilter<AntiforgeryFilter>();
+        // ЛР 6 (F-03): пошук лише для автентифікованих і лише в межах доступних користувачу інцидентів
         app.MapGet("/api/incidents/search", async (
-    string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
+    string? q, string? sortBy, ClaimsPrincipal user, SecureLabDbContext db, CancellationToken ct) =>
 {
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
+        return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
+    var isAnalyst = user.IsInRole(DbSeeder.AnalystRole);
+
     var pattern = "%" + EscapeLike(q ?? "") + "%";
 
     var found = db.Incidents.AsNoTracking()
+        .Where(i => isAnalyst || i.OwnerUserId == currentUserId)
         .Where(i => EF.Functions.ILike(i.Title, pattern, "\\")
                  || EF.Functions.ILike(i.Description, pattern, "\\"));
 
@@ -240,7 +246,8 @@ public static class Lab02Endpoints
         .ToListAsync(ct);
 
     return Results.Ok(items);
-});
+}).RequireAuthorization()
+  .RequireRateLimiting("search");
     }
 }
 

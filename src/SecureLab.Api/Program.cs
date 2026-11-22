@@ -29,8 +29,9 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = (context, _) =>
     {
         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning("Auth event {EventType}: result {Result}, trace {TraceId}",
-            "login", "rate_limited", context.HttpContext.TraceIdentifier);
+        // Шлях відхиленого запиту замість фіксованого "login"; без логіна, пароля й cookie
+        logger.LogWarning("Rate limit event: path {Path}, result {Result}, trace {TraceId}",
+            context.HttpContext.Request.Path.Value, "rate_limited", context.HttpContext.TraceIdentifier);
         return ValueTask.CompletedTask;
     };
 
@@ -42,6 +43,20 @@ builder.Services.AddRateLimiter(options =>
             {
                 PermitLimit = 10,
                 Window = TimeSpan.FromSeconds(30),
+                QueueLimit = 0
+            }));
+
+    // ЛР 6: пошук — ключ partition = id автентифікованого користувача, для аноніма — IP;
+    // 5 запитів за 10 секунд без черги. Login-політика вище не змінюється.
+    options.AddPolicy("search", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value is { } userId
+                ? $"user:{userId}"
+                : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromSeconds(10),
                 QueueLimit = 0
             }));
 });
