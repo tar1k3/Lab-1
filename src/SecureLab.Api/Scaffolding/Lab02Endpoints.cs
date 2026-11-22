@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
+using SecureLab.Api.Security;
 using System.Security.Claims;
 using System.Diagnostics;
 namespace SecureLab.Api.Scaffolding;
@@ -96,7 +97,8 @@ public static class Lab02Endpoints
                 incident.UpdatedAtUtc);
 
             return Results.Created($"/api/incidents/{incident.Id}", response);
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+          .AddEndpointFilter<AntiforgeryFilter>();
         // ВИПРАВЛЕНО (ЛР 4): рішення авторизації ухвалюється до будь-якої зміни
         app.MapPut("/api/incidents/{id:guid}", async (
             Guid id,
