@@ -138,9 +138,9 @@ if (app.Environment.IsDevelopment())
 {
     app.UseCors("Lab05BrowserProbe");
 }
-app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
