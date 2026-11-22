@@ -192,9 +192,29 @@ public static class Lab02Endpoints
                     statusCode: StatusCodes.Status409Conflict);
 
             // Наступний статус визначає сервер, а не клієнт
+            var oldStatus = incident.Status;
+            var changedAt = DateTimeOffset.UtcNow;
             incident.Status = IncidentStatus.Triaged;
-            incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            incident.UpdatedAtUtc = changedAt;
+
+            // ЛР 6 (F-02): audit trail дозволеного переходу — хто, дія, ресурс, результат, час.
+            // Без тіла запиту, cookie й токенів; користувач — за id (мінімізація даних).
+            db.IncidentStatusHistory.Add(new IncidentStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incident.Id,
+                ChangedByUserId = currentUserId,
+                OldStatus = oldStatus,
+                NewStatus = incident.Status,
+                Note = "incident.triage: allowed",
+                CreatedAtUtc = changedAt
+            });
             await db.SaveChangesAsync(ct);
+
+            loggerFactory.CreateLogger("SecureLab.Audit").LogInformation(
+                "Audit incident.status_changed: user {UserId}, action {Action}, incident {IncidentId}, from {OldStatus} to {NewStatus}, result {Result}, at {At}, trace {TraceId}",
+                currentUserId, "incident.triage", incident.Id, oldStatus, incident.Status, "allowed", changedAt,
+                Activity.Current?.Id ?? httpContext.TraceIdentifier);
 
             return Results.Ok(new { incident.Id, Status = incident.Status.ToString() });
         }).RequireAuthorization()
